@@ -1,0 +1,57 @@
+# Machine Learning Course Project
+by Paul Bischoff
+
+In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+The goal of this project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set.
+
+## Cleaning and preprocessing the data
+
+Variables with over 10,000 blank or NA rows were removed. After cleaning the data, I ended up with 53 variables. I split the training set into a training (70%) and validation (30%) set.
+```{r cache=TRUE, eval=FALSE}
+#load necessary libraries
+library(caret)
+library(gbm)
+
+# read in the training and testing sets
+training.raw = read.csv("pml-training.csv",na.strings=c("","NA"))
+testing.raw = read.csv("pml-testing.csv",na.strings=c("","NA"))
+
+# reduce training sets, remove variables with more than 10k NAs
+training.red <- training.raw[!colSums(is.na(training.raw)) > 10000]
+# remove timestamp, window, name, and X variables
+var.reduce <- grep("timestamp|window|name|X", names(training.red))
+training.red <- training.red[,-var.reduce]
+
+#split the training set into training and validation sets
+inTrain <- createDataPartition(y = training.red$classe, p = 0.7, list = FALSE)
+training <- training.red[inTrain,]
+validation <- training.red[-inTrain,]
+
+```
+
+## Analysis
+
+After fitting three different models on the training set, I predicted them against the validation set. Random forest proved to be the most accurate at 99.2 percent.
+```{r cache=TRUE, eval=FALSE}
+# train a random forest, lda, and gbm models to the training set
+fit.rf <- train(classe ~ ., data=training, method="rf")
+fit.lda <- train(classe ~ ., data=training, method="lda")
+fit.gbm <- train(classe ~., data=training, method="gbm")
+
+pred.rf <- predict(fit.rf, validation)
+pred.lda <- predict(fit.lda, validation)
+pred.gbm <- predict(fit.gbm, validation)
+
+#test accuracies of each model
+confusionMatrix(pred.rf, validation$classe) #99.2% accurate
+confusionMatrix(pred.lda, validation$classe) #70% accurate
+confusionMatrix(pred.gbm, validation$classe) #95.65 accurate
+
+#predict test values using most accurate model (random forest)
+pred.test <- predict(fit.rf, testing.raw)
+
+#estimate out of sample error rate
+(1-confusionMatrix(pred.rf,validation$classe)$overall["Accuracy"])*100 #0.83%
+```
+The out-of-sample error rate is predicted to be 0.83 percent.
