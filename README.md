@@ -1,2 +1,0 @@
-# practicalmachinelearning
-course project
